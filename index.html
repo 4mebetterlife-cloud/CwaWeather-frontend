@@ -336,4 +336,183 @@
             <span>臺北</span>
             <span class="brand">Petit Ours Météo</span>
         </div>
-        <div id="updateTime" class="update-pill">更新中…
+        <div id="updateTime" class="update-pill">更新中…</div>
+    </div>
+
+    <div class="container" id="mainContent" style="display: none;">
+        <div id="heroCard"></div>
+
+        <h3 class="section-title">
+            <span>接下來的巴黎小時光</span>
+            <span class="script">petite météo</span>
+        </h3>
+        <div class="scroll-container" id="futureForecasts"></div>
+    </div>
+
+    <script>
+        // ✅ 改成台北市
+        const API_URL = "https://weather-cat.zeabur.app/api/weather/taipei";
+
+        function getWeatherIcon(weather) {
+            if (!weather) return "🌤️";
+            if (weather.includes("晴")) return "☀️";
+            if (weather.includes("多雲")) return "⛅";
+            if (weather.includes("陰")) return "☁️";
+            if (weather.includes("雨")) return "🌧️";
+            if (weather.includes("雷")) return "⛈️";
+            return "🌤️";
+        }
+
+        // 法式浪漫風的小提醒文案
+        function getAdvice(rainProb, maxTemp) {
+            let rainIcon = "🌂";
+            let rainText = "今天像巴黎散步日，雨不太會來。";
+
+            if (parseInt(rainProb) > 30) {
+                rainIcon = "☂️";
+                rainText = "雨有點任性，帶把傘，在咖啡館窗邊也很浪漫。";
+            }
+
+            let clothIcon = "👕";
+            let clothText = "一身輕盈，就可以在街角晃一圈。";
+
+            if (parseInt(maxTemp) >= 28) {
+                clothIcon = "🌞";
+                clothText = "適合短袖與輕薄洋裝，喝杯冰咖啡剛剛好。";
+            } else if (parseInt(maxTemp) <= 20) {
+                clothIcon = "🧥";
+                clothText = "加件風衣，在河邊吹風也不怕冷。";
+            } else {
+                clothIcon = "🧣";
+                clothText = "薄外套配圍巾，剛好是巴黎街頭的好天氣。";
+            }
+
+            return { rainIcon, rainText, clothIcon, clothText };
+        }
+
+        // 加上「巴黎」的時間帶
+        function getTimePeriod(startTime) {
+            const hour = new Date(startTime).getHours();
+            if (hour >= 5 && hour < 11) return "巴黎早晨";
+            if (hour >= 11 && hour < 14) return "巴黎中午";
+            if (hour >= 14 && hour < 18) return "巴黎午後";
+            if (hour >= 18 && hour < 23) return "巴黎夜晚";
+            return "巴黎深夜";
+        }
+
+        // 針對不同天氣，給一段法式浪漫描述
+        function getRomanticDescription(weather, avgTemp, period) {
+            let sentence = "";
+
+            if (weather.includes("雷")) {
+                sentence = "天空有點情緒化，像一首帶著電流的巴黎搖滾樂。";
+            } else if (weather.includes("雨")) {
+                sentence = "適合坐在咖啡館窗邊，聽雨滴敲著玻璃慢慢發呆。";
+            } else if (weather.includes("陰")) {
+                sentence = "雲鋪滿天空，像一封還沒寫好的情書，安靜卻溫柔。";
+            } else if (weather.includes("多雲")) {
+                sentence = "陽光和雲朵在玩捉迷藏，每個轉角都像電影畫面。";
+            } else if (weather.includes("晴")) {
+                sentence = "陽光灑在屋頂上，是適合散步、拍照、偷懶的一天。";
+            } else {
+                sentence = "今天的空氣很溫柔，怎麼走路都像在拍電影。";
+            }
+
+            return `${period} · ${sentence}<span class="meta">（體感約 ${avgTemp}°C，實際狀況：${weather}）</span>`;
+        }
+
+        function renderWeather(data) {
+            const forecasts = data.forecasts;
+            const current = forecasts[0];
+            const others = forecasts.slice(1);
+
+            const advice = getAdvice(current.rain, current.maxTemp);
+            const period = getTimePeriod(current.startTime);
+            const avgTemp = Math.round((parseInt(current.maxTemp) + parseInt(current.minTemp)) / 2);
+
+            document.getElementById('heroCard').innerHTML = `
+                <div class="hero-card">
+                    <div class="hero-period">${period}</div>
+                    <div class="hero-temp-container">
+                        <div class="hero-icon">🗼${getWeatherIcon(current.weather)}</div>
+                        <div class="hero-temp">
+                            ${avgTemp}<span class="unit">°C</span>
+                        </div>
+                    </div>
+                    <div class="hero-desc">
+                        ${getRomanticDescription(current.weather, avgTemp, period)}
+                    </div>
+                    
+                    <div class="advice-grid">
+                        <div class="advice-item">
+                            <div class="advice-icon">${advice.rainIcon}</div>
+                            <div class="advice-text">${advice.rainText}</div>
+                            <div class="advice-sub">浪漫小雨機率：${current.rain}</div>
+                        </div>
+                        <div class="advice-item">
+                            <div class="advice-icon">${advice.clothIcon}</div>
+                            <div class="advice-text">${advice.clothText}</div>
+                            <div class="advice-sub">白天最高溫：約 ${current.maxTemp}°C</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 稍後預報
+            const scrollContainer = document.getElementById('futureForecasts');
+            scrollContainer.innerHTML = '';
+
+            const todayDate = new Date().getDate();
+
+            others.forEach(f => {
+                let p = getTimePeriod(f.startTime);
+
+                const fDate = new Date(f.startTime);
+                if (fDate.getDate() !== todayDate) {
+                    p = "明天 · " + p;
+                }
+
+                scrollContainer.innerHTML += `
+                    <div class="mini-card">
+                        <div class="mini-time">${p}</div>
+                        <div class="mini-icon">🗼${getWeatherIcon(f.weather)}</div>
+                        <div class="mini-temp">${f.minTemp}° - ${f.maxTemp}°</div>
+                        <div class="mini-rain">💧 小雨任性指數：${f.rain}</div>
+                    </div>
+                `;
+            });
+
+            const now = new Date();
+            const month = now.getMonth() + 1;
+            const date = now.getDate();
+            const dayIndex = now.getDay();
+            const days = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
+
+            document.getElementById('updateTime').textContent = `${month}月${date}日 ${days[dayIndex]}`;
+        }
+
+        async function fetchWeather() {
+            try {
+                const delayPromise = new Promise(resolve => setTimeout(resolve, 1500));
+                const fetchPromise = fetch(API_URL).then(res => res.json());
+
+                const [_, json] = await Promise.all([delayPromise, fetchPromise]);
+
+                if (json.success) {
+                    renderWeather(json.data);
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('mainContent').style.display = 'block';
+                } else {
+                    throw new Error("API Error");
+                }
+            } catch (e) {
+                console.error(e);
+                alert("天氣資料讀取失敗，小熊好像在塞納河畔迷路了，等等再試試看吧。");
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", fetchWeather);
+    </script>
+</body>
+
+</html>
